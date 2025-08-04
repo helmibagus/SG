@@ -1,0 +1,299 @@
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snake Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+  />
+  <style>
+    #game-container {
+      touch-action: none;
+    }
+    /* Custom scrollbar for dark theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #2563eb;
+      border-radius: 10px;
+      border: 2px solid #0f172a;
+    }
+  </style>
+</head>
+<body class="bg-[#0f172a] text-white flex flex-col min-h-screen font-sans">
+  <header
+    class="bg-gradient-to-r from-[#2563eb] via-[#3b82f6] to-[#60a5fa] p-4 flex items-center justify-center space-x-4 select-none shadow-lg"
+  >
+    <h1 class="text-3xl font-extrabold tracking-wide drop-shadow-lg">
+      Snake Game
+    </h1>
+    <div class="flex items-center space-x-3 ml-6">
+      <img
+        alt="Ethereum OS logo, stylized blue and white geometric shape on transparent background"
+        class="w-8 h-8 rounded-full"
+        height="32"
+        src="https://pbs.twimg.com/media/GxQ9_fraIAA7_E_?format=jpg&name=medium"
+        width="32"
+      />
+      <span class="text-white font-semibold text-3xl select-text">@Ethereum_OS</span>
+    </div>
+  </header>
+
+  <main class="flex-grow flex flex-col items-center justify-center p-6 max-w-5xl mx-auto">
+    <p class="text-center text-[#bfdbfe] text-sm md:text-base leading-relaxed mb-8 px-4 select-none max-w-4xl">
+      Welcome to the Ethereum Operating System—the first-of-its-kind revenue generating DeFi pumpware built as a social DeFi sandbox that is filled with composable elements so you can create, trade, communicate, and participate—all in one place.
+    </p>
+
+    <div class="flex w-full max-w-5xl items-center justify-center space-x-10">
+      <img
+        src="https://pbs.twimg.com/profile_images/1944664719014645760/adw705jI_400x400.jpg"
+        alt="Decorative image on the left side of the game, showing a stylized blue and white Ethereum OS themed artwork"
+        class="w-40 h-40 rounded-3xl object-cover hidden sm:block"
+        width="160"
+        height="160"
+      />
+      <div
+        id="game-container"
+        class="relative w-full max-w-md aspect-square rounded-3xl shadow-2xl border-4 border-[#3b82f6] bg-gradient-to-br from-[#1e293b] to-[#0f172a]"
+      >
+        <canvas id="game" class="w-full h-full rounded-3xl"></canvas>
+      </div>
+      <img
+        src="https://pbs.twimg.com/profile_images/1944664719014645760/adw705jI_400x400.jpg"
+        alt="Decorative image on the right side of the game, showing a stylized blue and white Ethereum OS themed artwork"
+        class="w-40 h-40 rounded-3xl object-cover hidden sm:block"
+        width="160"
+        height="160"
+      />
+    </div>
+
+    <div class="mt-8 flex flex-col items-center space-y-5">
+      <div class="text-xl font-semibold tracking-wide text-[#60a5fa]">
+        Score: <span id="score">0</span>
+      </div>
+      <button
+        id="startBtn"
+        class="px-8 py-3 bg-[#2563eb] hover:bg-[#1e40af] rounded-full text-white font-bold tracking-wide shadow-lg transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-[#3b82f6]"
+      >
+        Start Game
+      </button>
+      <div class="text-sm text-[#94a3b8] max-w-xs text-center select-none">
+        Use arrow keys or swipe on mobile to control the snake.
+      </div>
+    </div>
+  </main>
+
+  <footer
+    class="bg-gradient-to-r from-[#2563eb] via-[#3b82f6] to-[#60a5fa] p-4 text-center select-none text-white flex flex-col items-center space-y-1 shadow-inner"
+  >
+    <div class="text-lg font-semibold text-[#bfdbfe] select-text">
+      created by <span class="font-extrabold">@Seung_ha_</span>
+    </div>
+  </footer>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const startBtn = document.getElementById("startBtn");
+
+    function resizeCanvas() {
+      const container = document.getElementById("game-container");
+      const size = container.clientWidth;
+      canvas.width = size;
+      canvas.height = size;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    const gridSize = 20;
+    let tileSize;
+    let snake;
+    let direction;
+    let food;
+    let score;
+    let gameInterval;
+    let gameSpeed = 120;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const minSwipeDistance = 30;
+
+    function init() {
+      tileSize = canvas.width / gridSize;
+      snake = [
+        { x: 9, y: 9 },
+        { x: 8, y: 9 },
+        { x: 7, y: 9 },
+      ];
+      direction = { x: 1, y: 0 };
+      placeFood();
+      score = 0;
+      scoreEl.textContent = score;
+      if (gameInterval) clearInterval(gameInterval);
+      gameInterval = setInterval(gameLoop, gameSpeed);
+      startBtn.disabled = true;
+      startBtn.classList.add("opacity-50", "cursor-not-allowed");
+    }
+
+    function placeFood() {
+      let newFood;
+      while (true) {
+        newFood = {
+          x: Math.floor(Math.random() * gridSize),
+          y: Math.floor(Math.random() * gridSize),
+        };
+        if (!snake.some((segment) => segment.x === newFood.x && segment.y === newFood.y)) {
+          break;
+        }
+      }
+      food = newFood;
+    }
+
+    function gameLoop() {
+      const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+
+      // Check collision with walls (no wrapping)
+      if (
+        head.x < 0 ||
+        head.x >= gridSize ||
+        head.y < 0 ||
+        head.y >= gridSize
+      ) {
+        gameOver();
+        return;
+      }
+
+      // Check collision with self (tail)
+      if (snake.some((segment) => segment.x === head.x && segment.y === head.y)) {
+        gameOver();
+        return;
+      }
+
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        scoreEl.textContent = score;
+        placeFood();
+        if (score % 5 === 0 && gameSpeed > 50) {
+          gameSpeed -= 10;
+          clearInterval(gameInterval);
+          gameInterval = setInterval(gameLoop, gameSpeed);
+        }
+      } else {
+        snake.pop();
+      }
+
+      draw();
+    }
+
+    function draw() {
+      // Clear canvas with dark background
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw food - bright blue circle
+      ctx.fillStyle = "#3b82f6";
+      ctx.beginPath();
+      ctx.arc(
+        food.x * tileSize + tileSize / 2,
+        food.y * tileSize + tileSize / 2,
+        tileSize / 2.5,
+        0,
+        2 * Math.PI
+      );
+      ctx.fill();
+
+      // Draw snake - gradient blue-green squares with border
+      snake.forEach((segment, index) => {
+        ctx.fillStyle = index === 0 ? "#60a5fa" : "#2563eb";
+        ctx.strokeStyle = "#1e40af";
+        ctx.lineWidth = 2;
+        ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
+        ctx.strokeRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
+      });
+    }
+
+    function gameOver() {
+      clearInterval(gameInterval);
+      alert(`Game Over! Your score: ${score}`);
+      startBtn.disabled = false;
+      startBtn.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+
+    window.addEventListener("keydown", (e) => {
+      switch (e.key) {
+        case "ArrowUp":
+          if (direction.y === 1) break;
+          direction = { x: 0, y: -1 };
+          break;
+        case "ArrowDown":
+          if (direction.y === -1) break;
+          direction = { x: 0, y: 1 };
+          break;
+        case "ArrowLeft":
+          if (direction.x === 1) break;
+          direction = { x: -1, y: 0 };
+          break;
+        case "ArrowRight":
+          if (direction.x === -1) break;
+          direction = { x: 1, y: 0 };
+          break;
+      }
+    });
+
+    const gameContainer = document.getElementById("game-container");
+    gameContainer.addEventListener(
+      "touchstart",
+      (e) => {
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+      },
+      { passive: true }
+    );
+
+    gameContainer.addEventListener(
+      "touchmove",
+      (e) => {
+        if (e.touches.length > 1) return;
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          if (deltaX > minSwipeDistance && direction.x !== -1) {
+            direction = { x: 1, y: 0 };
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+          } else if (deltaX < -minSwipeDistance && direction.x !== 1) {
+            direction = { x: -1, y: 0 };
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+          }
+        } else {
+          if (deltaY > minSwipeDistance && direction.y !== -1) {
+            direction = { x: 0, y: 1 };
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+          } else if (deltaY < -minSwipeDistance && direction.y !== 1) {
+            direction = { x: 0, y: -1 };
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+          }
+        }
+      },
+      { passive: true }
+    );
+
+    startBtn.addEventListener("click", init);
+  </script>
+</body>
+</html>
